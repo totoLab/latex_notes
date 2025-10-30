@@ -9,3 +9,4 @@ images
 .env
 __pycache__
 output
+workspaces
