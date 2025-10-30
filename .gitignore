@@ -1,0 +1,11 @@
+images
+*.aux
+*.fls
+*.fdb*
+*.log
+*.xdv
+*.pdf
+*.json
+.env
+__pycache__
+output

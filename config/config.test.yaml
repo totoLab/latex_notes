@@ -1,0 +1,33 @@
+# PDF to LaTeX Pipeline Configuration
+# This file shows how to configure the pipeline for TESTING mode using dummy converter
+
+# Pipeline settings
+pipeline:
+  output_dir: "test"  # Output directory for all generated files
+  section_prefix: "notes"  # Prefix for LaTeX section files
+  doc_title: "My Converted Handwritten Notes"
+  resume: true  # Resume from checkpoint if available
+
+# PDF to Image converter settings
+converters:
+  pdf:
+    dpi: 300  # Resolution for image extraction
+    enable_diff_check: true  # Detect changes in existing images
+  
+  # Image to LaTeX converter settings
+  image_to_latex:
+    type: "dummy"  # Use 'dummy' for testing, 'gemini' for production
+    
+    # Gemini API settings (not used when type is 'dummy')
+    api_key_env: "GEMINI_API_KEY"  # Environment variable name for API key
+    model: "gemini-2.0-flash-exp"
+    
+    # Retry and timeout settings
+    max_retries: 3
+    timeout: 120  # seconds
+    retry_delay: 5  # seconds (exponential backoff)
+    
+    # Rate limiting (requests per minute)
+    rate_limit:
+      max_requests: 10  # Higher for dummy since no real API calls
+      time_window: 60  # seconds

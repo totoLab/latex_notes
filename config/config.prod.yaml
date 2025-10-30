@@ -1,0 +1,33 @@
+# PDF to LaTeX Pipeline Configuration
+# This file shows how to configure the pipeline for PRODUCTION mode using Gemini API
+
+# Pipeline settings
+pipeline:
+  output_dir: "output"  # Output directory for all generated files
+  section_prefix: "notes"  # Prefix for LaTeX section files
+  doc_title: "My Converted Handwritten Notes"
+  resume: true  # Resume from checkpoint if available
+
+# PDF to Image converter settings
+converters:
+  pdf:
+    dpi: 300  # Resolution for image extraction
+    enable_diff_check: true  # Detect changes in existing images
+  
+  # Image to LaTeX converter settings
+  image_to_latex:
+    type: "gemini"  # Use 'gemini' for production, 'dummy' for testing
+    
+    # Gemini API settings
+    api_key_env: "GEMINI_API_KEY"  # Environment variable name for API key
+    model: "gemini-2.0-flash-exp"  # or "gemini-2.5-pro" for better quality
+    
+    # Retry and timeout settings
+    max_retries: 3
+    timeout: 120  # seconds
+    retry_delay: 5  # seconds (exponential backoff)
+    
+    # Rate limiting (requests per minute)
+    rate_limit:
+      max_requests: 2  # Conservative rate limit for API
+      time_window: 60  # seconds
