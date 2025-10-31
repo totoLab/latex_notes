@@ -20,11 +20,11 @@ converters:
     
     # Gemini API settings
     api_key_env: "GEMINI_API_KEY"  # Environment variable name for API key
-    model: "gemini-2.0-flash-exp"  # or "gemini-2.5-pro" for better quality
+    model: "gemini-2.5-pro"  # or "gemini-2.5-pro" for better quality
     
     # Retry and timeout settings
     max_retries: 3
-    timeout: 120  # seconds
+    timeout: 240  # seconds
     retry_delay: 5  # seconds (exponential backoff)
     
     # Rate limiting (requests per minute)
