@@ -16,12 +16,11 @@ converters:
   
   # Image to LaTeX converter settings
   image_to_latex:
-    type: "gemini"  # Use 'gemini' for production, 'dummy' for testing
-    
-    # Gemini API settings
+    # Set type to one of: 'gemini', 'openai', 'anthropic', 'dummy'
+    type: "gemini"
     api_key_env: "GEMINI_API_KEY"  # Environment variable name for API key
-    model: "gemini-3-flash"  # or "gemini-2.5-pro" for better quality
-    
+    model: "gemini-3-flash"
+
     # Retry and timeout settings
     max_retries: 3
     timeout: 240  # seconds

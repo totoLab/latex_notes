@@ -5,3 +5,5 @@ python-dotenv
 Pillow
 pdf2image
 google-genai
+openai 
+anthropic

@@ -6,6 +6,8 @@ from typing import Optional
 from .converters.base import ImageToLatexConverterBase, PDFToImageConverterBase
 from .converters.gemini_converter import GeminiImageToLatexConverter
 from .converters.dummy_converter import DummyImageToLatexConverter
+from .converters.openai_converter import OpenAIImageToLatexConverter
+from .converters.anthropic_converter import AnthropicImageToLatexConverter
 from .converters.pdf_converter import PDFToImageConverter
 from .utils.rate_limiter import RateLimiter
 
@@ -62,10 +64,34 @@ class ConverterFactory:
                 retry_delay=retry_delay,
                 rate_limiter=rate_limiter
             )
+        elif converter_type == 'openai':
+            if not api_key:
+                raise ValueError("API key required for OpenAI converter")
+            print(f"🤖 Using OpenAIImageToLatexConverter (model: {model})")
+            return OpenAIImageToLatexConverter(
+                api_key=api_key,
+                model=model,
+                max_retries=max_retries,
+                timeout=timeout,
+                retry_delay=retry_delay,
+                rate_limiter=rate_limiter
+            )
+        elif converter_type == 'anthropic':
+            if not api_key:
+                raise ValueError("API key required for Anthropic converter")
+            print(f"🤖 Using AnthropicImageToLatexConverter (model: {model})")
+            return AnthropicImageToLatexConverter(
+                api_key=api_key,
+                model=model,
+                max_retries=max_retries,
+                timeout=timeout,
+                retry_delay=retry_delay,
+                rate_limiter=rate_limiter
+            )
         else:
             raise ValueError(
                 f"Unknown converter type: {converter_type}. "
-                f"Available types: 'gemini', 'dummy'"
+                f"Available types: 'gemini', 'openai', 'anthropic', 'dummy'"
             )
     
     @staticmethod
