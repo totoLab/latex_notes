@@ -7,6 +7,7 @@ pipeline:
   section_prefix: "notes"  # Prefix for LaTeX section files
   doc_title: "My Converted Handwritten Notes"
   resume: true  # Resume from checkpoint if available
+  compile_and_fix: true  # Compile and fix LaTeX errors after each page
 
 # PDF to Image converter settings
 converters:
@@ -30,3 +31,19 @@ converters:
     rate_limit:
       max_requests: 4  # Conservative rate limit for API
       time_window: 60  # seconds
+  
+  # LaTeX error fixer settings
+  latex_error_fixer:
+    enabled: true  # Enable/disable error fixing
+    type: "gemini"  # AI service to use: 'gemini', 'openai', 'anthropic'
+    api_key_env: "GEMINI_API_KEY"  # Environment variable for API key
+    model: "gemini-2.0-flash-exp"  # Model to use for fixing errors
+    max_retries: 3
+    retry_delay: 5
+    max_fix_attempts: 5  # Maximum attempts to fix compilation errors per page
+
+# LaTeX compiler settings
+latex_compiler:
+  compiler: "xelatex"  # LaTeX compiler: 'xelatex', 'pdflatex', 'lualatex'
+  clean_aux: true  # Clean auxiliary files after successful compilation
+

@@ -7,7 +7,8 @@ import traceback
 from typing import Optional, Dict
 
 from ..converters.base import PDFToImageConverterBase, ImageToLatexConverterBase
-from ..utils import CheckpointManager, LatexIntegrator
+from ..converters.latex_error_fixer import LatexErrorFixer
+from ..utils import CheckpointManager, LatexIntegrator, LatexCompiler
 
 
 class PDFToLatexPipeline:
@@ -22,7 +23,10 @@ class PDFToLatexPipeline:
         pdf_converter: PDFToImageConverterBase,
         image_converter: ImageToLatexConverterBase,
         checkpoint_manager: Optional[CheckpointManager] = None,
-        latex_integrator: Optional[LatexIntegrator] = None
+        latex_integrator: Optional[LatexIntegrator] = None,
+        latex_compiler: Optional[LatexCompiler] = None,
+        latex_error_fixer: Optional[LatexErrorFixer] = None,
+        compile_and_fix: bool = False
     ):
         """
         Initialize pipeline with injected dependencies
@@ -32,11 +36,17 @@ class PDFToLatexPipeline:
             image_converter: Image to LaTeX converter instance
             checkpoint_manager: Optional checkpoint manager (creates default if None)
             latex_integrator: Optional LaTeX integrator (creates default if None)
+            latex_compiler: Optional LaTeX compiler (creates default if None)
+            latex_error_fixer: Optional LaTeX error fixer (creates default if None)
+            compile_and_fix: Whether to compile and fix errors after each page
         """
         self.pdf_converter = pdf_converter
         self.image_converter = image_converter
         self.checkpoint_manager = checkpoint_manager or CheckpointManager()
         self.latex_integrator = latex_integrator or LatexIntegrator()
+        self.latex_compiler = latex_compiler
+        self.latex_error_fixer = latex_error_fixer
+        self.compile_and_fix = compile_and_fix
     
     def run(
         self,
@@ -167,6 +177,15 @@ class PDFToLatexPipeline:
                 # Convert image to LaTeX using injected converter
                 latex_code = self.image_converter.convert(image_path)
                 
+                # Compile and fix errors if enabled
+                if self.compile_and_fix and self.latex_compiler and self.latex_error_fixer:
+                    latex_code = self._compile_and_fix_latex(
+                        latex_code,
+                        page_num=i,
+                        section_title=f"Page {i}",
+                        output_dir=latex_dir
+                    )
+                
                 # Save as section
                 section_file = self.latex_integrator.save_section(
                     latex_code,
@@ -254,3 +273,127 @@ class PDFToLatexPipeline:
             'checkpoint': checkpoint,
             'status': 'complete'
         }
+    
+    def _compile_and_fix_latex(
+        self,
+        latex_code: str,
+        page_num: int,
+        section_title: str,
+        output_dir: str,
+        max_fix_attempts: int = 2
+    ) -> str:
+        """
+        Compile LaTeX code and fix errors if any
+        
+        Args:
+            latex_code: The LaTeX code to compile
+            page_num: Page number being processed
+            section_title: Title for the section
+            output_dir: Directory for temporary files
+            max_fix_attempts: Maximum attempts to fix compilation errors
+            
+        Returns:
+            Fixed LaTeX code (or original if no errors or fixing fails)
+        """
+        import tempfile
+        
+        print(f"   🔨 Testing compilation for page {page_num}...")
+        
+        # Create a temporary complete LaTeX document for testing
+        temp_latex = self._create_test_document(latex_code, section_title)
+        
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            suffix='.tex',
+            dir=output_dir,
+            delete=False,
+            encoding='utf-8'
+        ) as temp_file:
+            temp_file.write(temp_latex)
+            temp_path = temp_file.name
+        
+        try:
+            # Try to compile
+            success, output, errors = self.latex_compiler.compile(temp_path, clean_aux=True)
+            
+            if success:
+                print(f"   ✅ Page {page_num} compiles successfully!")
+                return latex_code
+            
+            # Compilation failed, try to fix
+            print(f"   ❌ Page {page_num} has {len(errors)} compilation error(s)")
+            
+            fixed_code = latex_code
+            for attempt in range(1, max_fix_attempts + 1):
+                print(f"   🔧 Fix attempt {attempt}/{max_fix_attempts}...")
+                
+                try:
+                    # Use error fixer to fix the code
+                    fixed_code = self.latex_error_fixer.fix_errors(
+                        latex_code=fixed_code,
+                        errors=errors
+                    )
+                    
+                    # Test the fixed code
+                    temp_latex_fixed = self._create_test_document(fixed_code, section_title)
+                    with open(temp_path, 'w', encoding='utf-8') as f:
+                        f.write(temp_latex_fixed)
+                    
+                    success, output, errors = self.latex_compiler.compile(temp_path, clean_aux=True)
+                    
+                    if success:
+                        print(f"   ✅ Successfully fixed errors for page {page_num}!")
+                        return fixed_code
+                    else:
+                        print(f"   ⚠️ Still has {len(errors)} error(s) after fix attempt {attempt}")
+                        
+                except Exception as e:
+                    print(f"   ⚠️ Error during fix attempt {attempt}: {str(e)}")
+                    
+            # All fix attempts failed
+            print(f"   ❌ Could not fix all errors after {max_fix_attempts} attempts")
+            print(f"   ⚠️ Using original code (may have compilation errors)")
+            return latex_code
+            
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_path)
+                # Also clean any auxiliary files
+                base_path = os.path.splitext(temp_path)[0]
+                for ext in ['.aux', '.log', '.out', '.xdv', '.pdf']:
+                    aux_file = base_path + ext
+                    if os.path.exists(aux_file):
+                        os.unlink(aux_file)
+            except Exception as e:
+                print(f"   ⚠️ Could not clean temporary files: {str(e)}")
+    
+    def _create_test_document(self, latex_content: str, title: str = "Test") -> str:
+        """
+        Create a complete LaTeX document for testing compilation
+        
+        Args:
+            latex_content: The LaTeX content to test
+            title: Document title
+            
+        Returns:
+            Complete LaTeX document as string
+        """
+        return r"""\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{""" + title + r"""}
+
+\begin{document}
+
+""" + latex_content + r"""
+
+\end{document}
+"""

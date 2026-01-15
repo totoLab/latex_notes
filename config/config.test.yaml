@@ -7,6 +7,7 @@ pipeline:
   section_prefix: "notes"  # Prefix for LaTeX section files
   doc_title: "My Converted Handwritten Notes"
   resume: true  # Resume from checkpoint if available
+  compile_and_fix: false  # Disable for testing mode (dummy converter)
 
 # PDF to Image converter settings
 converters:
@@ -31,3 +32,19 @@ converters:
     rate_limit:
       max_requests: 10  # Higher for dummy since no real API calls
       time_window: 60  # seconds
+  
+  # LaTeX error fixer settings (disabled for testing)
+  latex_error_fixer:
+    enabled: false  # Disabled for testing mode
+    type: "gemini"
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.0-flash-exp"
+    max_retries: 3
+    retry_delay: 5
+    max_fix_attempts: 2
+
+# LaTeX compiler settings
+latex_compiler:
+  compiler: "xelatex"
+  clean_aux: true
+

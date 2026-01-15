@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 from src.config_loader import ConfigLoader
 from src.factory import ConverterFactory
 from src.pipeline import PDFToLatexPipeline
-from src.utils import CheckpointManager, LatexIntegrator
+from src.utils import CheckpointManager, LatexIntegrator, LatexCompiler
+from src.converters.latex_error_fixer import LatexErrorFixer
 from src.workspace_manager import WorkspaceManager
 
 
@@ -190,12 +191,51 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
     latex_dir = os.path.join(output_dir, 'latex')
     latex_integrator = LatexIntegrator(output_dir=latex_dir)
     
+    # Get compile and fix configuration
+    compile_and_fix = pipeline_config.get('compile_and_fix', False)
+    latex_compiler = None
+    latex_error_fixer = None
+    
+    if compile_and_fix:
+        # Create LaTeX compiler
+        compiler_config = config.config.get('latex_compiler', {})
+        latex_compiler = LatexCompiler(
+            compiler=compiler_config.get('compiler', 'xelatex'),
+            output_dir=output_dir
+        )
+        
+        # Create LaTeX error fixer
+        fixer_config = config.get_converter_config('latex_error_fixer')
+        if fixer_config and fixer_config.get('enabled', True):
+            # Get API key for error fixer
+            fixer_api_key_env = fixer_config.get('api_key_env', 'GEMINI_API_KEY')
+            fixer_api_key = os.getenv(fixer_api_key_env)
+            
+            fixer_type = fixer_config.get('type', 'gemini')
+            
+            if fixer_api_key or fixer_type == 'dummy':
+                latex_error_fixer = LatexErrorFixer(
+                    converter_type=fixer_type,
+                    api_key=fixer_api_key,
+                    model=fixer_config.get('model'),
+                    max_retries=fixer_config.get('max_retries', 3),
+                    retry_delay=fixer_config.get('retry_delay', 5),
+                    rate_limiter=rate_limiter
+                )
+                print(f"🔧 LaTeX error fixing enabled using {fixer_type}")
+            else:
+                print(f"⚠️ Warning: {fixer_api_key_env} not set, disabling error fixing")
+                compile_and_fix = False
+    
     # Create pipeline with dependency injection
     pipeline = PDFToLatexPipeline(
         pdf_converter=pdf_converter,
         image_converter=image_converter,
         checkpoint_manager=checkpoint_manager,
-        latex_integrator=latex_integrator
+        latex_integrator=latex_integrator,
+        latex_compiler=latex_compiler,
+        latex_error_fixer=latex_error_fixer,
+        compile_and_fix=compile_and_fix
     )
     
     # Run pipeline
