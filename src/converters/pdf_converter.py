@@ -15,6 +15,7 @@ from ..utils.image_diff import ImageDiff
 
 
 class PDFToImageConverter(PDFToImageConverterBase):
+
     """Converts PDF pages to images with optional re-extraction for changed pages"""
     
     def __init__(self, dpi: int = 300, enable_diff_check: bool = True):
@@ -27,6 +28,23 @@ class PDFToImageConverter(PDFToImageConverterBase):
         """
         self.dpi = dpi
         self.enable_diff_check = enable_diff_check
+        
+    def get_pdf_pages(self, pdf_path: str):
+        """
+        Returns an iterator over page numbers (1-based) for the given PDF file.
+        Caches the result in the object for future reference.
+        """
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(pdf_path)
+            num_pages = len(reader.pages)
+        except ImportError:
+            raise ImportError("PyPDF2 not installed. Install with: pip install PyPDF2")
+        self._last_pdf_path = pdf_path
+        self._last_pdf_pages = list(range(1, num_pages + 1))
+        # Explicitly release the reader object to help unload the PDF from memory
+        del reader
+        return iter(self._last_pdf_pages)
         
     def convert(
         self, 
