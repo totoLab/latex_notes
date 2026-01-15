@@ -168,19 +168,24 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
     checkpoint_file = os.path.join(output_dir, 'checkpoint.json')
     checkpoint_manager = CheckpointManager(checkpoint_file=checkpoint_file)
 
-    # --- Ensure checkpoint includes all pages in the PDF ---
+    # --- Ensure checkpoint includes all pages in the PDF (streaming/incremental) ---
     try:
-        # Load checkpoint data
-        checkpoint_data = checkpoint_manager.load() if hasattr(checkpoint_manager, 'load') else None
-        # Get current PDF pages (assume pdf_converter has a method get_pdf_pages)
-        pdf_pages = pdf_converter.get_pdf_pages(pdf_path)
-        if checkpoint_data is not None and pdf_pages is not None:
-            # Add new pages to checkpoint
-            new_pages = [p for p in pdf_pages if p not in checkpoint_data]
-            for page in new_pages:
+        # Use generator for PDF pages if available
+        pdf_pages_iter = pdf_converter.get_pdf_pages(pdf_path)
+        # Open checkpoint file and update incrementally
+        checkpoint_data = checkpoint_manager.load()
+        if checkpoint_data is None:
+            checkpoint_data = {}
+        # Only update missing pages one at a time
+        updated = False
+        for page in pdf_pages_iter:
+            if page not in checkpoint_data:
                 checkpoint_data[page] = {"status": "pending"}
-            if new_pages:
+                updated = True
+                # Save after each addition to avoid memory spike
                 checkpoint_manager.save(checkpoint_data)
+        if not updated:
+            pass  # No new pages to add
     except Exception as e:
         print(f"⚠️ Could not update checkpoint with new pages: {e}")
 
