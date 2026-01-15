@@ -228,6 +228,11 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
                 compile_and_fix = False
     
     # Create pipeline with dependency injection
+    max_fix_attempts = 2
+    if compile_and_fix and latex_error_fixer:
+        fixer_config = config.get_converter_config('latex_error_fixer')
+        max_fix_attempts = fixer_config.get('max_fix_attempts', 2)
+        
     pipeline = PDFToLatexPipeline(
         pdf_converter=pdf_converter,
         image_converter=image_converter,
@@ -235,7 +240,8 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
         latex_integrator=latex_integrator,
         latex_compiler=latex_compiler,
         latex_error_fixer=latex_error_fixer,
-        compile_and_fix=compile_and_fix
+        compile_and_fix=compile_and_fix,
+        max_fix_attempts=max_fix_attempts
     )
     
     # Run pipeline

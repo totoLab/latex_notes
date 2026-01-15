@@ -26,7 +26,8 @@ class PDFToLatexPipeline:
         latex_integrator: Optional[LatexIntegrator] = None,
         latex_compiler: Optional[LatexCompiler] = None,
         latex_error_fixer: Optional[LatexErrorFixer] = None,
-        compile_and_fix: bool = False
+        compile_and_fix: bool = False,
+        max_fix_attempts: int = 2
     ):
         """
         Initialize pipeline with injected dependencies
@@ -39,6 +40,7 @@ class PDFToLatexPipeline:
             latex_compiler: Optional LaTeX compiler (creates default if None)
             latex_error_fixer: Optional LaTeX error fixer (creates default if None)
             compile_and_fix: Whether to compile and fix errors after each page
+            max_fix_attempts: Maximum attempts to fix compilation errors per page
         """
         self.pdf_converter = pdf_converter
         self.image_converter = image_converter
@@ -47,6 +49,7 @@ class PDFToLatexPipeline:
         self.latex_compiler = latex_compiler
         self.latex_error_fixer = latex_error_fixer
         self.compile_and_fix = compile_and_fix
+        self.max_fix_attempts = max_fix_attempts
     
     def run(
         self,
@@ -193,7 +196,8 @@ class PDFToLatexPipeline:
                         latex_code,
                         page_num=i,
                         section_title=f"Page {i}",
-                        output_dir=latex_dir
+                        output_dir=latex_dir,
+                        max_fix_attempts=self.max_fix_attempts
                     )
                 
                 # Save as section
