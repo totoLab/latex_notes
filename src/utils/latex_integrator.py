@@ -17,16 +17,18 @@ class LatexIntegrator:
     
     def clean_latex(self, raw_latex: str, remove_preamble: bool = True) -> str:
         """Clean raw LaTeX for integration"""
+
         if remove_preamble:
-            # Remove document class and preamble
+            # Remove document class and preamble (case-insensitive, all occurrences)
             raw_latex = re.sub(
                 r'\\documentclass.*?\\begin\{document\}',
                 '',
                 raw_latex,
-                flags=re.DOTALL
+                flags=re.DOTALL | re.IGNORECASE
             )
-            # Remove end document
-            raw_latex = raw_latex.replace(r'\end{document}', '')
+            # Remove end document (case-insensitive, all occurrences)
+            raw_latex = re.sub(r'\\end\{document\}', '', raw_latex, flags=re.IGNORECASE)
+
         
         # Clean up excessive whitespace
         raw_latex = re.sub(r'\n{3,}', '\n\n', raw_latex)

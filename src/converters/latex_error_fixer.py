@@ -288,4 +288,14 @@ CORRECTED LATEX CODE:"""
         # Remove common AI response prefixes
         text = re.sub(r'^(Here is the corrected|Here\'s the fixed|Corrected).*?:\s*', '', text, flags=re.IGNORECASE | re.MULTILINE)
         
+        # Remove document class and preamble if present (should only return content)
+        text = re.sub(
+            r'\\documentclass.*?\\begin\{document\}',
+            '',
+            text,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+        # Remove \end{document} tags
+        text = re.sub(r'\\end\{document\}', '', text, flags=re.IGNORECASE)
+        
         return text.strip()
