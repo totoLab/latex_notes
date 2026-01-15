@@ -251,6 +251,7 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
         section_prefix=pipeline_config.get('section_prefix', 'notes'),
         create_main_doc=True,
         doc_title=pipeline_config.get('doc_title', 'Converted Notes'),
+        add_page_titles=args.add_page_titles,
         resume=not args.no_resume
     )
     
@@ -360,6 +361,11 @@ Examples:
         '--no-resume',
         action='store_true',
         help='Start fresh instead of resuming from checkpoint'
+    )
+    convert_parser.add_argument(
+        '--add-page-titles',
+        action='store_true',
+        help='Add page number as a title for each page section'
     )
     
     # Parse arguments

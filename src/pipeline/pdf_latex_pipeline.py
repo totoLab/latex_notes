@@ -58,6 +58,7 @@ class PDFToLatexPipeline:
         section_prefix: str = "notes",
         create_main_doc: bool = True,
         doc_title: str = "Converted Notes",
+        add_page_titles: bool = False,
         resume: bool = True
     ) -> dict:
         """
@@ -190,12 +191,14 @@ class PDFToLatexPipeline:
                 # Convert image to LaTeX using injected converter
                 latex_code = self.image_converter.convert(image_path)
                 
+                section_title = f"Page {i}" if add_page_titles else None
+
                 # Compile and fix errors if enabled
                 if self.compile_and_fix and self.latex_compiler and self.latex_error_fixer:
                     latex_code = self._compile_and_fix_latex(
                         latex_code,
                         page_num=i,
-                        section_title=f"Page {i}",
+                        section_title=section_title,
                         output_dir=latex_dir,
                         max_fix_attempts=self.max_fix_attempts
                     )
@@ -204,7 +207,7 @@ class PDFToLatexPipeline:
                 section_file = self.latex_integrator.save_section(
                     latex_code,
                     filename=f"{section_prefix}_page{i}",
-                    section_title=f"Page {i}",
+                    section_title=section_title,
                     wrap_in_section=True
                 )
                 
@@ -317,7 +320,7 @@ class PDFToLatexPipeline:
         self,
         latex_code: str,
         page_num: int,
-        section_title: str,
+        section_title: Optional[str],
         output_dir: str,
         max_fix_attempts: int = 2
     ) -> str:
@@ -408,7 +411,7 @@ class PDFToLatexPipeline:
             except Exception as e:
                 print(f"   ⚠️ Could not clean temporary files: {str(e)}")
     
-    def _create_test_document(self, latex_content: str, title: str = "Test") -> str:
+    def _create_test_document(self, latex_content: str, title: Optional[str] = "Test") -> str:
         """
         Create a complete LaTeX document for testing compilation
         
@@ -425,10 +428,11 @@ class PDFToLatexPipeline:
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{arydshln}
 \usepackage{geometry}
 \geometry{margin=1in}
 
-\title{""" + title + r"""}
+\title{""" + (title or "") + r"""}
 
 \begin{document}
 
