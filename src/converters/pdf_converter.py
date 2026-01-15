@@ -2,10 +2,13 @@
 PDF to Image Converter
 Converts PDF pages to images with optional change detection
 """
+
 import os
 from pathlib import Path
 from typing import List, Optional, Dict, Tuple
 from PIL import Image
+import concurrent.futures
+from threading import Lock
 
 from .base import PDFToImageConverterBase
 from ..utils.image_diff import ImageDiff
@@ -66,13 +69,17 @@ class PDFToImageConverter(PDFToImageConverterBase):
         except ImportError:
             raise ImportError("PyPDF2 not installed. Install with: pip install PyPDF2")
 
-        for i in range(1, num_pages + 1):
+        # Thread-safe containers
+        lock = Lock()
+        image_paths_shared = []
+        image_versions_shared = {}
+
+        def process_page(i):
             images = convert_from_path(pdf_path, dpi=self.dpi, first_page=i, last_page=i)
             if not images:
-                continue
+                return
             image = images[0]
             image_path = os.path.join(output_dir, f"{pdf_name}_page{i}.png")
-
             # Get current version from checkpoint
             current_version = 0
             if checkpoint and 'pages' in checkpoint:
@@ -80,47 +87,44 @@ class PDFToImageConverter(PDFToImageConverterBase):
                     if page_entry['page'] == i:
                         current_version = page_entry.get('image_version', 0)
                         break
-
             # Check if image already exists and if diff checking is enabled
             if self.enable_diff_check and os.path.exists(image_path):
-                # Load existing image
                 existing_image = Image.open(image_path)
-
-                # Compare images using ImageDiff
                 diff_checker = ImageDiff(existing_image, image)
                 clusters = diff_checker.run()
-
                 if len(clusters) > 2:
-                    # Image has changed - increment version
                     new_version = current_version + 1
                     print(f"⚠️ Page {i} has {len(clusters)} changes detected - updating (v{current_version} → v{new_version})")
-
-                    # Save the new image
                     image.save(image_path, 'PNG')
                     print(f"✓ Updated page {i} to version {new_version}")
-                    image_paths.append(image_path)
-                    image_versions[i] = new_version
+                    with lock:
+                        image_paths_shared.append(image_path)
+                        image_versions_shared[i] = new_version
                 else:
-                    # Image unchanged - keep current version
                     if clusters:
                         print(f"✓ Page {i} has {len(clusters)} minor changes - keeping version {current_version}")
                     else:
                         print(f"✓ Page {i} unchanged - version {current_version}")
-                    image_paths.append(image_path)
-                    image_versions[i] = current_version
-                # Explicitly close and delete existing_image to free memory
+                    with lock:
+                        image_paths_shared.append(image_path)
+                        image_versions_shared[i] = current_version
                 existing_image.close()
                 del existing_image
             else:
-                # New image - version 1
                 new_version = 1
                 image.save(image_path, 'PNG')
                 print(f"✓ Saved page {i} as version {new_version}")
-                image_paths.append(image_path)
-                image_versions[i] = new_version
-
-            # Explicitly close and delete image to free memory
+                with lock:
+                    image_paths_shared.append(image_path)
+                    image_versions_shared[i] = new_version
             image.close()
             del image
 
-        return image_paths, image_versions
+        # Use ThreadPoolExecutor to process pages in parallel
+        max_workers = min(4, num_pages)  # Limit number of threads
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(process_page, range(1, num_pages + 1))
+        # Sort image_paths by page number
+        image_paths_sorted = [os.path.join(output_dir, f"{pdf_name}_page{i}.png") for i in sorted(image_versions_shared.keys())]
+        image_versions_sorted = {i: image_versions_shared[i] for i in sorted(image_versions_shared.keys())}
+        return image_paths_sorted, image_versions_sorted
