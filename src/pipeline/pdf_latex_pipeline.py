@@ -165,6 +165,16 @@ class PDFToLatexPipeline:
                 section_file = os.path.join(latex_dir, f"{section_prefix}_page{i}.tex")
                 if os.path.exists(section_file):
                     latex_sections.append(section_file)
+                    
+                    # Ensure it's in main document even if skipped
+                    if create_main_doc:
+                        main_doc_path = os.path.join(output_dir, "main.tex")
+                        self.latex_integrator.append_section_to_main(
+                            section_file=section_file,
+                            main_doc_path=main_doc_path,
+                            title=doc_title
+                        )
+                
                 print(f"⏭️ Skipping page {i}/{len(images)} (up to date)")
                 continue
             
@@ -195,6 +205,16 @@ class PDFToLatexPipeline:
                 )
                 
                 latex_sections.append(section_file)
+                
+                # Append to main document immediately if create_main_doc is enabled
+                if create_main_doc:
+                    main_doc_path = os.path.join(output_dir, "main.tex")
+                    self.latex_integrator.append_section_to_main(
+                        section_file=section_file,
+                        main_doc_path=main_doc_path,
+                        title=doc_title
+                    )
+                    print(f"✓ Added page {i} to main.tex")
                 
                 # Update checkpoint - LaTeX is now same version as image
                 self.checkpoint_manager.update_page_entry(
@@ -236,16 +256,31 @@ class PDFToLatexPipeline:
         
         print(f"\n✓ All {len(latex_sections)} LaTeX sections ready\n")
         
-        # Stage 3: Create main document
+        # Stage 3: Finalize main document
         main_doc_path = None
         if create_main_doc:
-            print("Stage 3: Creating main document...")
+            print("Stage 3: Finalizing main document...")
             main_doc_path = os.path.join(output_dir, "main.tex")
-            self.latex_integrator.create_main_document(
-                latex_sections,
-                output_path=main_doc_path,
-                title=doc_title
-            )
+            
+            # Main document should already exist from incremental updates
+            # But ensure all sections are present (in case of resume)
+            if not os.path.exists(main_doc_path):
+                # Create it fresh if it doesn't exist
+                self.latex_integrator.create_main_document(
+                    latex_sections,
+                    output_path=main_doc_path,
+                    title=doc_title
+                )
+            else:
+                # Verify all sections are included
+                for section_file in latex_sections:
+                    self.latex_integrator.append_section_to_main(
+                        section_file=section_file,
+                        main_doc_path=main_doc_path,
+                        title=doc_title
+                    )
+            
+            print(f"✓ Main document ready at {main_doc_path}")
             checkpoint['main_document_updated'] = True
             checkpoint['main_document_path'] = main_doc_path
             self.checkpoint_manager.save_checkpoint(checkpoint)

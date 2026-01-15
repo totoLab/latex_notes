@@ -104,3 +104,90 @@ class LatexIntegrator:
         
         print(f"✓ Created main document at {output_path}")
         return output_path
+    
+    def append_section_to_main(
+        self,
+        section_file: str,
+        main_doc_path: str,
+        title: str = "Converted Notes",
+        author: str = ""
+    ) -> str:
+        """
+        Append a section to an existing main document, or create it if it doesn't exist
+        
+        Args:
+            section_file: Path to the section file to append
+            main_doc_path: Path to the main document
+            title: Document title (used if creating new document)
+            author: Document author (used if creating new document)
+            
+        Returns:
+            Path to the updated main document
+        """
+        # Check if main document exists
+        if not os.path.exists(main_doc_path):
+            # Create initial document structure
+            doc_content = r"""\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{cancel}
+\usepackage{tikz}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+"""
+            if title:
+                doc_content += f"\\title{{{title}}}\n"
+            if author:
+                doc_content += f"\\author{{{author}}}\n"
+            
+            doc_content += r"""
+\begin{document}
+
+"""
+            if title:
+                doc_content += r"\maketitle" + "\n\n"
+            
+            doc_content += r"\end{document}"
+            
+            # Ensure directory exists
+            Path(os.path.dirname(main_doc_path)).mkdir(parents=True, exist_ok=True)
+            
+            with open(main_doc_path, 'w', encoding='utf-8') as f:
+                f.write(doc_content)
+        
+        # Read current content
+        with open(main_doc_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Find the position of \end{document}
+        end_doc_pos = content.rfind(r'\end{document}')
+        
+        if end_doc_pos == -1:
+            raise ValueError(f"Invalid main document: missing \\end{{document}} in {main_doc_path}")
+        
+        # Calculate relative path from main document to section file
+        rel_path = os.path.relpath(section_file, os.path.dirname(main_doc_path))
+        rel_path_no_ext = os.path.splitext(rel_path)[0]
+        
+        # Check if this section is already included
+        input_statement = f"\\input{{{rel_path_no_ext}}}"
+        if input_statement in content:
+            # Section already included, don't duplicate
+            return main_doc_path
+        
+        # Insert the new \input statement before \end{document}
+        new_content = (
+            content[:end_doc_pos] +
+            f"{input_statement}\n\n" +
+            content[end_doc_pos:]
+        )
+        
+        # Write updated content
+        with open(main_doc_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        return main_doc_path
