@@ -167,7 +167,23 @@ def cmd_convert(workspace_mgr: WorkspaceManager, args):
     # Create checkpoint manager and integrator
     checkpoint_file = os.path.join(output_dir, 'checkpoint.json')
     checkpoint_manager = CheckpointManager(checkpoint_file=checkpoint_file)
-    
+
+    # --- Ensure checkpoint includes all pages in the PDF ---
+    try:
+        # Load checkpoint data
+        checkpoint_data = checkpoint_manager.load() if hasattr(checkpoint_manager, 'load') else None
+        # Get current PDF pages (assume pdf_converter has a method get_pdf_pages)
+        pdf_pages = pdf_converter.get_pdf_pages(pdf_path)
+        if checkpoint_data is not None and pdf_pages is not None:
+            # Add new pages to checkpoint
+            new_pages = [p for p in pdf_pages if p not in checkpoint_data]
+            for page in new_pages:
+                checkpoint_data[page] = {"status": "pending"}
+            if new_pages:
+                checkpoint_manager.save(checkpoint_data)
+    except Exception as e:
+        print(f"⚠️ Could not update checkpoint with new pages: {e}")
+
     latex_dir = os.path.join(output_dir, 'latex')
     latex_integrator = LatexIntegrator(output_dir=latex_dir)
     
