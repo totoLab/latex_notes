@@ -52,15 +52,15 @@ class GeminiImageToLatexConverter(ImageToLatexConverterBase):
             LaTeX code as string
         """
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
         except ImportError:
             raise ImportError(
-                "google-generativeai not installed. Install with: pip install google-generativeai"
+                "google-genai not installed. Install with: pip install google-genai"
             )
         
-        # Configure Gemini
-        genai.configure(api_key=self.api_key)
-        model = genai.GenerativeModel(self.model)
+        # Create Gemini client
+        client = genai.Client(api_key=self.api_key)
         
         # Read and encode image
         with open(image_path, 'rb') as f:
@@ -96,9 +96,16 @@ Output only the LaTeX code."""
                     print(f"🔄 Converting {os.path.basename(image_path)} to LaTeX (attempt {attempt}/{self.max_retries})...")
                 
                 # Generate LaTeX with timeout handling
-                response = model.generate_content(
-                    [prompt, {"mime_type": "image/png", "data": image_data}],
-                    request_options={"timeout": self.timeout}
+                # Note: timeout is handled via http_options in the client config
+                response = client.models.generate_content(
+                    model=self.model,
+                    contents=[
+                        prompt,
+                        types.Part.from_bytes(
+                            data=image_data,
+                            mime_type="image/png"
+                        )
+                    ]
                 )
                 latex_code = response.text
                 
