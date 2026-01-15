@@ -72,6 +72,7 @@ class LatexIntegrator:
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{geometry}
+\usepackage{arydshln}
 \geometry{margin=1in}
 
 """
@@ -135,6 +136,7 @@ class LatexIntegrator:
 \usepackage{graphicx}
 \usepackage{cancel}
 \usepackage{tikz}
+\usepackage{arydshln}
 \usepackage{geometry}
 \geometry{margin=1in}
 
